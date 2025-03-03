@@ -1,0 +1,70 @@
+// ฟังก์ชันสำหรับดึงข้อมูลจาก API และบันทึกลงใน Sheets
+function importCovidData() {
+  // กำหนดชื่อแผ่นงาน (ปรับแก้ได้ตามต้องการ)
+  var sheetName = "Sheet1";
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  
+  // ถ้าไม่มีแผ่นงานตามชื่อที่กำหนด ให้สร้างใหม่
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  }
+  
+  // URL ของ API
+  var url = "###########################################################################";
+  
+  // ดึงข้อมูลจาก API
+  var response = UrlFetchApp.fetch(url);
+  var data = JSON.parse(response.getContentText());
+  
+  // ตรวจสอบว่าข้อมูลที่ได้รับเป็น array หรือไม่
+  if (!Array.isArray(data)) {
+    Logger.log("ข้อมูลไม่อยู่ในรูปแบบ Array");
+    return;
+  }
+  
+  // ล้างข้อมูลเก่าในแผ่นงาน (ถ้าต้องการ)
+  sheet.clearContents();
+  
+  // กำหนดหัวตาราง (header) ตามโครงสร้างข้อมูลที่มี
+  var headers = [
+    "year", "weeknum", "province", "new_case", "total_case", 
+    "new_case_excludeabroad", "total_case_excludeabroad", 
+    "new_death", "total_death", "update_date"
+  ];
+  sheet.appendRow(headers);
+  
+  // วนลูปเพื่อบันทึกข้อมูลแต่ละแถว
+  data.forEach(function(item) {
+    var row = [
+      item.year,
+      item.weeknum,
+      item.province,
+      item.new_case,
+      item.total_case,
+      item.new_case_excludeabroad,
+      item.total_case_excludeabroad,
+      item.new_death,
+      item.total_death,
+      item.update_date
+    ];
+    sheet.appendRow(row);
+  });
+}
+
+// ฟังก์ชันสำหรับตั้ง trigger ให้รัน importCovidData ทุก 1 ชั่วโมง
+function createTimeDrivenTrigger() {
+  // ลบ trigger ที่มีอยู่ก่อน เพื่อป้องกัน trigger ซ้ำซ้อน
+  var triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === "importCovidData") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+  
+  // สร้าง trigger ใหม่ให้รันทุก ๆ 1 ชั่วโมง
+  ScriptApp.newTrigger("importCovidData")
+    .timeBased()
+    .everyHours(1)
+    .create();
+}
